@@ -23,7 +23,7 @@ def stack_im(im):
 
 out_map = {'Nucleus':0, 'Mitochondria':1, 'Tubulin':2, 'Actin':3}
 
-def percentile_normalization(image, pmin=2, pmax=99.8, axis=None, dtype=np.uint16 ):
+def percentile_normalization(image, pmin=0.01, pmax=99.9, axis=None, dtype=np.uint16 ):
     '''
     Compute a percentile normalization for the given image.
 
