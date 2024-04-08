@@ -100,7 +100,7 @@ class NPZDataset(Dataset):
         return image, out, out_class, torch.tensor([idx])
 
 model = smp.Unet(
-    encoder_name="efficientnet-b2", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+    encoder_name="efficientnet-b7", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
     encoder_weights="imagenet", # use `imagenet` pre-trained weights for encoder initialization
     in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
     classes=4, # model output channels (number of classes in your dataset)
