@@ -24,7 +24,7 @@ def stack_im(im):
     o = np.concatenate([np.concatenate(im[i:i+2], axis=1) for i in range(0, len(im), 2)], axis=0)
     return o
 
-out_map = {'Nucleus':0, 'Mitochondria':1, 'Tubulin':2, 'Actin':3}
+out_map = {'Tubulin':0}
 
 def percentile_normalization(image, pmin=0.01, pmax=99.9, axis=None, dtype=np.uint16 ):
     '''
@@ -107,7 +107,7 @@ model = smp.Unet(
 #    encoder_name="tu-tf_efficientnetv2_xl", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
 #    encoder_weights="imagenet", # use `imagenet` pre-trained weights for encoder initialization
     in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-    classes=4, # model output channels (number of classes in your dataset)
+    classes=1, # model output channels (number of classes in your dataset)
     activation='sigmoid'
 )
 
@@ -128,9 +128,9 @@ def replace_batchnorm(model):
 
     return model 
     
-model = replace_batchnorm(model)
+#model = replace_batchnorm(model)
 
-full_dataset = NPZDataset('data/')
+full_dataset = NPZDataset('data_tubulin/')
 
 train_size = int(0.9 * len(full_dataset))
 test_size = len(full_dataset) - train_size
