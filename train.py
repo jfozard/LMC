@@ -62,9 +62,12 @@ def percentile_normalization(image, pmin=0.01, pmax=99.9, axis=None, dtype=np.ui
     return img_norm
 
 class NPZDataset(Dataset):
-    def __init__(self, dataset_path):
+    def __init__(self, dataset_path, split='train', subset='all'):
         self.meta = pickle.load(open(dataset_path + 'meta.pkl', 'rb'))
-        self.images = list(pickle.load(open(dataset_path + 'images.pkl', 'rb')).values())
+        splits = pickle.load(open(dataset_path + 'splits.pkl', 'rb'))
+        self.all_images = pickle.load(open(dataset_path + 'images.pkl', 'rb'))
+        self.images = splits[subset][split][:8]
+        self.split = split
         self.path = dataset_path
 
     def __len__(self):
@@ -72,7 +75,7 @@ class NPZDataset(Dataset):
     
     def __getitem__(self, idx):
 
-        imdata = self.images[idx]
+        imdata = self.all_images[self.images[idx]]
         in_im = random.choice(imdata['input_images'])
 
         with np.load(self.path + '/' + in_im[0] +'.npz') as in_npz:
@@ -116,6 +119,12 @@ import torch
 import torch.nn as nn
 from torch.optim import Adam
 
+from pathlib import Path
+
+output_dir = Path('train')
+output_dir.mkdir(parents=True, exist_ok=True)
+
+
 def replace_batchnorm(model):
     for name, module in reversed(model._modules.items()):
         if len(list(module.children())) > 0:
@@ -129,11 +138,8 @@ def replace_batchnorm(model):
     
 #model = replace_batchnorm(model)
 
-full_dataset = NPZDataset('data/')
-
-train_size = int(0.9 * len(full_dataset))
-test_size = len(full_dataset) - train_size
-train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size], generator=torch.Generator().manual_seed(42))
+train_dataset = NPZDataset('data/', split='train')
+test_dataset = NPZDataset('data/', split='test')
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=True, drop_last=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=4, shuffle=False, drop_last=True)
@@ -149,9 +155,11 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 print(model)
 
+lf = open(output_dir / 'log.txt', 'w')
+
 fig, ax = plt.subplots(1,3, figsize=(12,4))
 # Training loop
-num_epochs = 1000
+num_epochs = 300
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -164,11 +172,7 @@ for epoch in range(num_epochs):
         outputs = torch.gather(outputs, 1, out_class)
 #        print(outputs.min(), outputs.max(), masks.min(), masks.max())
 
-<<<<<<< HEAD
-        loss = criterion(outputs, masks) + 0.1*criterion2(outputs, masks)
-=======
         loss = criterion(outputs, masks) + 0.5*criterion2(outputs, masks)
->>>>>>> 529f32c567217700b0931c976efddeeb3feb492b
 
         x = outputs
         y = masks
@@ -199,10 +203,10 @@ for epoch in range(num_epochs):
         ax[2].imshow(stack_im(masks[:,0].detach().cpu().numpy()))
         for i in range(out_class_i.shape[0]):
             ax[2].text((i%2)*S+10, (i//2)*S+50, str(out_class_i[i].item()), c='w')
-        plt.savefig(f'{epoch}.png')
+        plt.savefig(output_dir/f'{epoch}.png')
     epoch_loss = running_loss / len(train_loader.dataset)
     
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
+    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}', file=lf)
 
     if epoch%5==0:
         # Evaluate on test set
@@ -230,7 +234,7 @@ for epoch in range(num_epochs):
                 loss -= cost.mean()
 
                 running_test_loss += loss.item() * images.size(0)
-            print('test loss', running_test_loss)
+            print('test loss', running_test_loss, file=lf)
         model.train()
     
     if epoch%10==0:
@@ -238,11 +242,12 @@ for epoch in range(num_epochs):
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             # Add anything else you need to save
-        }, f'model_and_optimizer_{epoch}.pth')
+        }, output_dir / f'model_and_optimizer_{epoch}.pth')
 
 torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             # Add anything else you need to save
-        }, f'model_and_optimizer_{epoch}.pth')
+        }, output_dir / f'model_and_optimizer_{epoch}.pth')
 
+lf.close()
