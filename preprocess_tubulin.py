@@ -12,12 +12,11 @@ from collections import defaultdict
 import numpy as np
 import pickle
 
-
-
 path = 'Orig_data/'
 
 files = os.listdir(path)
 output_path = 'data_tubulin/' 
+
 
 os.makedirs(output_path, exist_ok=True)
 

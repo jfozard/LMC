@@ -10,6 +10,9 @@ from torchvision.transforms import functional as TF
 import pickle
 import random
 import tqdm
+import matplotlib as mpl
+mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 
@@ -100,9 +103,8 @@ class NPZDataset(Dataset):
         return image, out, out_class, torch.tensor([idx])
 
 model = smp.Unet(
-#    encoder_name="efficientnet-b7", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-    encoder_name="tu-tf_efficientnetv2_xl", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-#    encoder_weights="imagenet", # use `imagenet` pre-trained weights for encoder initialization
+    encoder_name="efficientnet-b7", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+    encoder_weights="imagenet", # use `imagenet` pre-trained weights for encoder initialization
     in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
     classes=4, # model output channels (number of classes in your dataset)
     activation='sigmoid'
@@ -131,10 +133,10 @@ full_dataset = NPZDataset('data/')
 
 train_size = int(0.9 * len(full_dataset))
 test_size = len(full_dataset) - train_size
-train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size])
+train_dataset, test_dataset = torch.utils.data.random_split(full_dataset, [train_size, test_size], generator=torch.Generator().manual_seed(42))
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=True, drop_last=True)
-test_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=False)
+test_loader = DataLoader(dataset=test_dataset, batch_size=4, shuffle=False, drop_last=True)
 
 # Loss and optimizer
 criterion = nn.L1Loss()
@@ -160,9 +162,13 @@ for epoch in range(num_epochs):
         outputs = model(images)
         out_class =  out_class_i.unsqueeze(2).unsqueeze(3).expand(-1, -1, outputs.shape[2], outputs.shape[3])
         outputs = torch.gather(outputs, 1, out_class)
-        print(outputs.min(), outputs.max(), masks.min(), masks.max())
+#        print(outputs.min(), outputs.max(), masks.min(), masks.max())
 
+<<<<<<< HEAD
         loss = criterion(outputs, masks) + 0.1*criterion2(outputs, masks)
+=======
+        loss = criterion(outputs, masks) + 0.5*criterion2(outputs, masks)
+>>>>>>> 529f32c567217700b0931c976efddeeb3feb492b
 
         x = outputs
         y = masks
@@ -193,11 +199,7 @@ for epoch in range(num_epochs):
         ax[2].imshow(stack_im(masks[:,0].detach().cpu().numpy()))
         for i in range(out_class_i.shape[0]):
             ax[2].text((i%2)*S+10, (i//2)*S+50, str(out_class_i[i].item()), c='w')
-        plt.draw()
-        plt.pause(0.05)
-        if epoch%10==0:
-            
-            plt.savefig(f'{epoch}.png')
+        plt.savefig(f'{epoch}.png')
     epoch_loss = running_loss / len(train_loader.dataset)
     
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
@@ -207,7 +209,7 @@ for epoch in range(num_epochs):
         model.eval()
         with torch.no_grad():
             running_test_loss = 0.0
-            for images, masks, out_class_i, idx in tqdm.tqdm(train_loader):
+            for images, masks, out_class_i, idx in tqdm.tqdm(test_loader):
                 images, masks, out_class_i = images.to(device), masks.to(device), out_class_i.to(device)
 
                 # Forward pass
