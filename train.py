@@ -66,7 +66,7 @@ class NPZDataset(Dataset):
         self.meta = pickle.load(open(dataset_path + 'meta.pkl', 'rb'))
         splits = pickle.load(open(dataset_path + 'splits.pkl', 'rb'))
         self.all_images = pickle.load(open(dataset_path + 'images.pkl', 'rb'))
-        self.images = splits[subset][split][:8]
+        self.images = splits[subset][split]
         self.split = split
         self.path = dataset_path
 
@@ -207,6 +207,7 @@ for epoch in range(num_epochs):
     epoch_loss = running_loss / len(train_loader.dataset)
     
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}', file=lf)
+    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
 
     if epoch%5==0:
         # Evaluate on test set
@@ -235,6 +236,7 @@ for epoch in range(num_epochs):
 
                 running_test_loss += loss.item() * images.size(0)
             print('test loss', running_test_loss, file=lf)
+            print('test loss', running_test_loss)
         model.train()
     
     if epoch%10==0:

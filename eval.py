@@ -126,7 +126,7 @@ def replace_batchnorm(model):
 
     return model 
     
-#model = replace_batchnorm(model)
+model = replace_batchnorm(model)
 
 full_dataset = NPZDataset('data/')
 
