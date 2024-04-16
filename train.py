@@ -68,6 +68,7 @@ class NPZDataset(Dataset):
         self.all_images = pickle.load(open(dataset_path + 'images.pkl', 'rb'))
         self.images = splits[subset][split]
         self.split = split
+        self.subset = subset
         self.path = dataset_path
 
     def __len__(self):
@@ -82,7 +83,10 @@ class NPZDataset(Dataset):
             image = in_npz['arr_0'] / 65535 
 
         #print(imdata['output_images'])
-        out_im = random.choice(imdata['output_images'])
+        if self.subset == 'all':
+            out_im = random.choice(imdata['output_images'])
+        else:
+            out_im = random.choice([u for u in imdata['output_images'] if u[1]==out_im])
         with np.load(self.path + '/' + out_im[0] +'.npz') as out_npz:
             out = out_npz['arr_0'] #/ 65535
 
