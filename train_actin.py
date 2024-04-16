@@ -125,7 +125,7 @@ from torch.optim import Adam
 
 from pathlib import Path
 
-output_dir = Path('train_tubulin')
+output_dir = Path('train_actin')
 output_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -144,8 +144,8 @@ def replace_batchnorm(model):
 
 
 
-train_dataset = NPZDataset('data/', split='train', subset='Tubulin')
-test_dataset = NPZDataset('data/', split='test', subset='Tubulin')
+train_dataset = NPZDataset('data/', split='train', subset='Actin')
+test_dataset = NPZDataset('data/', split='test', subset='Actin')
 
 train_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=True, drop_last=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=4, shuffle=False, drop_last=True)
@@ -168,7 +168,7 @@ lf = open(output_dir / 'log.txt', 'w')
 
 fig, ax = plt.subplots(1,3, figsize=(12,4))
 # Training loop
-num_epochs = 300
+num_epochs = 200
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
