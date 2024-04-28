@@ -126,7 +126,7 @@ def replace_batchnorm(model):
 
     return model 
     
-model = replace_batchnorm(model)
+#model = replace_batchnorm(model)
 
 full_dataset = NPZDataset('data/')
 
@@ -164,8 +164,9 @@ with torch.no_grad():
         out_class =  out_class_i.unsqueeze(2).unsqueeze(3).expand(-1, -1, outputs.shape[2], outputs.shape[3])
         outputs = torch.gather(outputs, 1, out_class)
 
-        loss = criterion(outputs, masks)
+        loss = criterion2(outputs, masks)
 
+        """
         x = outputs
         y = masks
 
@@ -175,7 +176,7 @@ with torch.no_grad():
         cost  = torch.sum(vx * vy, dim=(2,3)) / (torch.norm(vx, dim=(2,3))* torch.norm(vy, dim=(2,3)) + 1e-6) 
 
         loss -= cost.mean()
-
+        """
         running_test_loss += loss.item() * images.size(0)
         print('test loss', running_test_loss)
 

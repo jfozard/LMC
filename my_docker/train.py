@@ -10,12 +10,10 @@ from torchvision.transforms import functional as TF
 import pickle
 import random
 import tqdm
-import matplotlib as mpl
-mpl.use('Agg')
-
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
 
+plt.ion()
 
 S=512
 
@@ -26,7 +24,7 @@ def stack_im(im):
 
 out_map = {'Nucleus':0, 'Mitochondria':1, 'Tubulin':2, 'Actin':3}
 
-def percentile_normalization(image, pmin=0.01, pmax=99.9, axis=None, dtype=np.uint16 ):
+def percentile_normalization(image, pmin=2, pmax=99.8, axis=None, dtype=np.uint16 ):
     '''
     Compute a percentile normalization for the given image.
 
@@ -56,20 +54,15 @@ def percentile_normalization(image, pmin=0.01, pmax=99.9, axis=None, dtype=np.ui
 
     else:
         dtype_max = np.iinfo(dtype).max
-        img_norm = dtype_max * np.clip((image - low_p) / ( high_p - low_p ), 0, 1)
+        img_norm = dtype_max * (image - low_p) / ( high_p - low_p )
         img_norm = img_norm.astype(dtype)
 
     return img_norm
 
 class NPZDataset(Dataset):
-    def __init__(self, dataset_path, split='train', subset='all'):
+    def __init__(self, dataset_path):
         self.meta = pickle.load(open(dataset_path + 'meta.pkl', 'rb'))
-        splits = pickle.load(open(dataset_path + 'splits.pkl', 'rb'))
-        print('splits', splits['all']['test'], splits['Actin']['test'])
-        self.all_images = pickle.load(open(dataset_path + 'images.pkl', 'rb'))
-        self.images = splits[subset][split]
-        self.split = split
-        self.subset = subset
+        self.images = list(pickle.load(open(dataset_path + 'images.pkl', 'rb')).values())
         self.path = dataset_path
 
     def __len__(self):
@@ -77,17 +70,14 @@ class NPZDataset(Dataset):
     
     def __getitem__(self, idx):
 
-        imdata = self.all_images[self.images[idx]]
+        imdata = self.images[idx]
         in_im = random.choice(imdata['input_images'])
 
         with np.load(self.path + '/' + in_im[0] +'.npz') as in_npz:
             image = in_npz['arr_0'] / 65535 
 
         #print(imdata['output_images'])
-        if self.subset == 'all':
-            out_im = random.choice(imdata['output_images'])
-        else:
-            out_im = random.choice([u for u in imdata['output_images'] if u[1]==self.subset])
+        out_im = random.choice(imdata['output_images'])
         with np.load(self.path + '/' + out_im[0] +'.npz') as out_npz:
             out = out_npz['arr_0'] #/ 65535
 
@@ -103,7 +93,7 @@ class NPZDataset(Dataset):
             image, output_size=(S, S))
         #i = j = 1024
         image = TF.crop(image, i, j, h, w)
-        image = TF.normalize(image, image.mean(dim=(1,2)), torch.clip(image.std(dim=(1,2)), min=1e-6)) # 0.485 0.229
+        image = TF.normalize(image, image.mean(dim=(1,2)), image.std(dim=(1,2))) # 0.485 0.229
         out = TF.crop(out, i, j, h, w)
 #        out = TF.normalize(out, out.mean(dim=(1,2)), out.std(dim=(1,2))) # 0.485 0.229
 
@@ -111,77 +101,44 @@ class NPZDataset(Dataset):
         return image, out, out_class, torch.tensor([idx])
 
 model = smp.Unet(
-    encoder_name="efficientnet-b7", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+    encoder_name="efficientnet-b2", # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
     encoder_weights="imagenet", # use `imagenet` pre-trained weights for encoder initialization
     in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
     classes=4, # model output channels (number of classes in your dataset)
     activation='sigmoid'
 )
-
-
-
 import torch
 import torch.nn as nn
 from torch.optim import Adam
 
-from pathlib import Path
-
-output_dir = Path('train_actin')
-output_dir.mkdir(parents=True, exist_ok=True)
-
-
-def replace_batchnorm(model):
-    for name, module in reversed(model._modules.items()):
-        if len(list(module.children())) > 0:
-            model._modules[name] = replace_batchnorm(module)
-        
-        if isinstance(module, torch.nn.BatchNorm2d):
-            model._modules[name] = torch.nn.GroupNorm(1, module.num_features)
-#            model._modules[name] = torch.nn.LayerNorm(32, module.num_features)
-
-    return model 
-    
-#model = replace_batchnorm(model)
-
-
-
-train_dataset = NPZDataset('data/', split='train', subset='Actin')
-test_dataset = NPZDataset('data/', split='test', subset='Actin')
-
+train_dataset = NPZDataset('data/')
 train_loader = DataLoader(dataset=train_dataset, batch_size=4, shuffle=True, drop_last=True)
-test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False, drop_last=True)
-
 
 # Loss and optimizer
 criterion = nn.L1Loss()
-criterion2 = nn.MSELoss()
-
 optimizer = Adam(model.parameters(), lr=1e-4)
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
-model.load_state_dict(torch.load('train/model_and_optimizer_140.pth')['model_state_dict'])
-
 print(model)
-
-lf = open(output_dir / 'log.txt', 'w')
 
 fig, ax = plt.subplots(1,3, figsize=(12,4))
 # Training loop
-num_epochs = 200
+num_epochs = 1000
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
     for images, masks, out_class_i, idx in tqdm.tqdm(train_loader):
         images, masks, out_class_i = images.to(device), masks.to(device), out_class_i.to(device)
+        
         # Forward pass
         outputs = model(images)
         out_class =  out_class_i.unsqueeze(2).unsqueeze(3).expand(-1, -1, outputs.shape[2], outputs.shape[3])
         outputs = torch.gather(outputs, 1, out_class)
-#        print(outputs.min(), outputs.max(), masks.min(), masks.max())
+        print(outputs.min(), outputs.max(), masks.min(), masks.max())
 
-        loss = criterion(outputs, masks) + 0.5*criterion2(outputs, masks)
+        loss = criterion(outputs, masks)
 
         x = outputs
         y = masks
@@ -200,7 +157,7 @@ for epoch in range(num_epochs):
         optimizer.step()
         
         running_loss += loss.item() * images.size(0)
-    
+
     if epoch%1==0:
         ax[0].cla()
         ax[0].imshow(stack_im(images[:,0].detach().cpu().numpy()))
@@ -212,53 +169,26 @@ for epoch in range(num_epochs):
         ax[2].imshow(stack_im(masks[:,0].detach().cpu().numpy()))
         for i in range(out_class_i.shape[0]):
             ax[2].text((i%2)*S+10, (i//2)*S+50, str(out_class_i[i].item()), c='w')
-        plt.savefig(output_dir/f'{epoch}.png')
+        plt.draw()
+        plt.pause(0.05)
+        if epoch%10==0:
+            plt.savefig(f'{epoch}.png')
     epoch_loss = running_loss / len(train_loader.dataset)
     
-    print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}', file=lf)
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss:.4f}')
 
-    if epoch%5==0:
-        # Evaluate on test set
-        model.eval()
-        with torch.no_grad():
-            running_test_loss = 0.0
-            for images, masks, out_class_i, idx in tqdm.tqdm(test_loader):
-                images, masks, out_class_i = images.to(device), masks.to(device), out_class_i.to(device)
-
-                # Forward pass
-                outputs = model(images)
-                out_class =  out_class_i.unsqueeze(2).unsqueeze(3).expand(-1, -1, outputs.shape[2], outputs.shape[3])
-                outputs = torch.gather(outputs, 1, out_class)
-
-                loss = criterion(outputs, masks)
-
-                x = outputs
-                y = masks
-
-                vx = x - torch.mean(x, dim=(2,3), keepdim=True)
-                vy = y - torch.mean(y, dim=(2,3), keepdim=True)
-
-                cost  = torch.sum(vx * vy, dim=(2,3)) / (torch.norm(vx, dim=(2,3))* torch.norm(vy, dim=(2,3)) + 1e-6) 
-
-                loss -= cost.mean()
-
-                running_test_loss += loss.item() * images.size(0)
-            print('test loss', running_test_loss, file=lf)
-            print('test loss', running_test_loss)
-        model.train()
-    
-    if epoch%10==0:
+    if epoch%200==0:
         torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             # Add anything else you need to save
-        }, output_dir / f'model_and_optimizer_{epoch}.pth')
+        }, f'model_and_optimizer_{epoch}.pth')
 
 torch.save({
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
             # Add anything else you need to save
-        }, output_dir / f'model_and_optimizer_{epoch}.pth')
+        }, f'model_and_optimizer_{epoch}.pth')
 
-lf.close()
+plt.ioff()
+plt.show()
