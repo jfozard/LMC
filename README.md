@@ -15,13 +15,13 @@ As the model is convolutional, model predictions were performed by applying the 
 
 Checkpoints are available at https://huggingface.co/JFoz/LMC_baseline
 
-![LMC_1](https://github.com/jfozard/LMC/assets/4390954/78f58534-7b6f-49be-a5fe-1f1e612857e4)
+<img src="https://github.com/jfozard/LMC/assets/4390954/78f58534-7b6f-49be-a5fe-1f1e612857e4" width="50%" />
 
-![LMC_2](https://github.com/jfozard/LMC/assets/4390954/f2d632a0-c51b-42bd-8478-cd5ffac4cd32)
+<img src="https://github.com/jfozard/LMC/assets/4390954/f2d632a0-c51b-42bd-8478-cd5ffac4cd32" width="50%" />
 
-![LMC_3](https://github.com/jfozard/LMC/assets/4390954/fd9c902e-f118-46c1-940c-76f938a8ec2d)
+<img src="https://github.com/jfozard/LMC/assets/4390954/fd9c902e-f118-46c1-940c-76f938a8ec2d" width="50%" />
 
-##Sample input
+## Sample input
 
 ![image_0_BF_z0 ome](https://github.com/jfozard/LMC/assets/4390954/d219bfdd-389c-4b43-b152-7486e699b034)
 
