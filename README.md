@@ -17,7 +17,7 @@ Checkpoints are available at https://huggingface.co/JFoz/LMC_baseline
 
 ### UNet Architecture
 
-<img src="https://github.com/jfozard/LMC/assets/4390954/78f58534-7b6f-49be-a5fe-1f1e612857e4" width="50%" />
+<img src="https://github.com/jfozard/LMC/assets/4390954/78f58534-7b6f-49be-a5fe-1f1e612857e4" width="75%" />
 
 ### MBConv Block
 
